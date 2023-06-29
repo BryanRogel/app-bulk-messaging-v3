@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.telephony.SmsManager
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ListView
@@ -19,8 +20,12 @@ import java.io.IOException
 import android.content.Intent
 import android.app.Activity
 import android.net.Uri
-import android.widget.ArrayAdapter
 import kotlinx.coroutines.*
+import java.text.Normalizer
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 
 class MainActivity : AppCompatActivity() {
 
@@ -53,6 +58,7 @@ class MainActivity : AppCompatActivity() {
         listViewPhoneNumbers = findViewById(R.id.listViewPhoneNumbers)
 
         buttonConfirm.setOnClickListener {
+            checkMessagePermission()
             val message = editTextMessage.text.toString()
 
             if (phoneNumbersList.isNotEmpty() && message.isNotEmpty()) {
@@ -94,6 +100,20 @@ class MainActivity : AppCompatActivity() {
                 this,
                 arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
                 PERMISSION_REQUEST_READ_STORAGE
+            )
+        }
+    }
+
+    private fun checkMessagePermission() {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.SEND_SMS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.SEND_SMS),
+                PERMISSION_REQUEST_SMS
             )
         }
     }
@@ -171,44 +191,64 @@ class MainActivity : AppCompatActivity() {
         val smsManager: SmsManager = SmsManager.getDefault()
 
         try {
-            smsManager.sendTextMessage(phoneNumber, null, message, null, null)
-            Toast.makeText(this, "Mensaje enviado a $phoneNumber", Toast.LENGTH_SHORT).show()
+            val parts = smsManager.divideMessage(message)
+            val sentIntents = ArrayList<PendingIntent>()
+            val deliveryIntents = ArrayList<PendingIntent>()
+
+            for (i in 0 until parts.size) {
+                sentIntents.add(PendingIntent.getBroadcast(this, 0, Intent("SMS_SENT"), 0))
+                deliveryIntents.add(PendingIntent.getBroadcast(this, 0, Intent("SMS_DELIVERED"), 0))
+            }
+
+            // Registrar el receptor de difusión para el evento de envío
+            val sentReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (resultCode == Activity.RESULT_OK) {
+                        updateListView(phoneNumber, true)
+                        Toast.makeText(context, "Mensaje enviado correctamente", Toast.LENGTH_SHORT).show()
+                    } else {
+                        updateListView(phoneNumber, false)
+//                        Toast.makeText(context, "Error al enviar el mensaje", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            registerReceiver(sentReceiver, IntentFilter("SMS_SENT"))
+
+            // Registrar el receptor de difusión para el evento de entrega
+            val deliveredReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (resultCode == Activity.RESULT_OK) {
+                        updateListView(phoneNumber, true)
+//                        Toast.makeText(context, "Mensaje entregado correctamente", Toast.LENGTH_SHORT).show()
+                    } else {
+                        updateListView(phoneNumber, false)
+//                        Toast.makeText(context, "Error al entregar el mensaje", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            registerReceiver(deliveredReceiver, IntentFilter("SMS_DELIVERED"))
+
+            smsManager.sendMultipartTextMessage(phoneNumber, null, parts, sentIntents, deliveryIntents)
         } catch (e: Exception) {
-            Toast.makeText(this, "Error al enviar mensaje a $phoneNumber", Toast.LENGTH_SHORT).show()
+            e.printStackTrace()
+            formatPhoneNumber(phoneNumber, false)
         }
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
-        when (requestCode) {
-            PERMISSION_REQUEST_READ_STORAGE -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // Permission granted, do nothing
-                } else {
-                    Toast.makeText(
-                        this,
-                        "Permiso denegado para acceder a la memoria interna",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-            PERMISSION_REQUEST_SMS -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    val message = editTextMessage.text.toString()
-                    startSendingSMS(message)
-                } else {
-                    Toast.makeText(
-                        this,
-                        "Permiso denegado para enviar mensajes",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
+    private fun updateListView(phoneNumber: String, isSent: Boolean) {
+        val adapter = listViewPhoneNumbers.adapter as ArrayAdapter<String>
+        val index = phoneNumbersList.indexOf(phoneNumber)
+        if (index != -1) {
+            phoneNumbersList.removeAt(index)
+            phoneNumbersList.add(index, formatPhoneNumber(phoneNumber, isSent))
+            adapter.notifyDataSetChanged()
         }
     }
 
-    data class Contacts(val numeros_telefono: List<String>)
+    private fun formatPhoneNumber(phoneNumber: String, isSent: Boolean): String {
+        val status = if (isSent) "Enviado" else "Error"
+        return "$phoneNumber - $status"
+    }
 }
+
+data class Contacts(val numeros_telefono: List<String>)

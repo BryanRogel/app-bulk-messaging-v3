@@ -8,38 +8,58 @@
     android:gravity="center"
     tools:context=".MainActivity">
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:text="Enviar Mensajes"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
     <EditText
         android:id="@+id/editTextMessage"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Mensaje" />
+        android:hint="Mensaje"
+        android:inputType="textMultiLine"
+        android:minLines="3"
+        android:gravity="top"
+        android:layout_marginBottom="16dp"
+        android:maxLength="133"/>
 
     <EditText
         android:id="@+id/editTextTime"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
         android:hint="Intervalo de tiempo (segundos)"
-        android:inputType="number"/>
+        android:inputType="number"
+        android:layout_marginBottom="16dp" />
 
     <Button
         android:id="@+id/buttonUpload"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Cargar Números de Teléfono" />
+
+    <Button
+        android:id="@+id/buttonConfirm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enviar Mensaje" />
+
+    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Cargar Lista" />
+        android:text="Números de Teléfono"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginTop="16dp" />
 
     <ListView
         android:id="@+id/listViewPhoneNumbers"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp" />
+        android:layout_height="wrap_content" />
 
-    <Button
-        android:id="@+id/buttonConfirm"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Enviar Mensaje" />
 
 </LinearLayout>
